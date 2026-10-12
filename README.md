@@ -4,6 +4,8 @@ React Native Android Fabric 视频播放器，底层复用 `video-mobile-player`
 
 当前只支持 Android，要求 React Native 新架构。播放器源码通过 Git submodule 固定在 `android/video-mobile-player`。
 
+插件 `v0.1.0` 固定使用 Android 播放器主库 `v0.1.0`。调用方只需要依赖本插件 tag，不需要直接管理底层主库版本。
+
 ## 获取源码
 
 ```shell
@@ -21,7 +23,7 @@ git submodule update --init --recursive
 ## 安装
 
 ```shell
-yarn add react-native-video-mobile-player
+yarn add https://github.com/onyou668/react-native-video-mobile-player.git#v0.1.0
 ```
 
 使用 Git dependency 时，包管理器不保证初始化 submodule。正式发布 npm 包前必须确保 `android/video-mobile-player` 已检出，npm 包会包含对应源码快照。
@@ -160,10 +162,13 @@ player.current?.syncPresentationMode(lastPresentation.floatingReturnMode);
 ## 更新底层播放器
 
 ```shell
-git submodule update --remote android/video-mobile-player
+git -C android/video-mobile-player fetch --tags
+git -C android/video-mobile-player checkout <android-player-tag>
 git add android/video-mobile-player
-git commit -m "chore: update native player"
+git commit -m "chore: update native player to <android-player-tag>"
 ```
+
+底层主库变更后，插件必须更新 submodule、通过 CI 并发布新的插件 tag。业务项目始终只依赖插件自己的 tag。
 
 ## 验证
 
