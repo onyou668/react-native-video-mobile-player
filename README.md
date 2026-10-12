@@ -4,7 +4,7 @@ React Native Android Fabric 视频播放器，底层复用 `video-mobile-player`
 
 当前只支持 Android，要求 React Native 新架构。播放器源码通过 Git submodule 固定在 `android/video-mobile-player`。
 
-插件 `v0.1.0` 固定使用 Android 播放器主库 `v0.1.0`。调用方只需要依赖本插件 tag，不需要直接管理底层主库版本。
+插件 `v0.2.0` 固定使用 Android 播放器主库 `v0.2.0`。调用方只需要依赖本插件 tag，不需要直接管理底层主库版本。
 
 ## 获取源码
 
@@ -23,7 +23,7 @@ git submodule update --init --recursive
 ## 安装
 
 ```shell
-yarn add https://github.com/onyou668/react-native-video-mobile-player.git#v0.1.0
+yarn add https://github.com/onyou668/react-native-video-mobile-player.git#v0.2.0
 ```
 
 使用 Git dependency 时，包管理器不保证初始化 submodule。正式发布 npm 包前必须确保 `android/video-mobile-player` 已检出，npm 包会包含对应源码快照。
@@ -69,6 +69,8 @@ export function Player() {
   );
 }
 ```
+
+`VideoMobilePlayerView` 只是可嵌入的播放器 View；详情、剧集、评论和推荐等页面内容始终由 React Native 宿主实现。宿主更新 `source` 就能切换地址，通过同一 ref 切换内核和展示模式，播放进度不依赖业务页面。
 
 本地文件使用 Android `content://` URI：
 
