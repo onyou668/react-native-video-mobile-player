@@ -49,9 +49,12 @@ export function Player() {
       ref={player}
       source={{
         uri: 'https://example.com/video.mp4',
+        mediaId: 'movie-42',
         headers: { Authorization: 'Bearer token' },
         title: 'Video',
       }}
+      // 非空时优先于本地保存进度；传 0 强制从头播放。
+      startPositionMs={10 * 60 * 1000}
       autoPlay
       initialEngine="media3"
       startupMode="inline"
@@ -74,6 +77,23 @@ export function Player() {
   style={{ width: '100%', aspectRatio: 16 / 9 }}
 />
 ```
+
+`mediaId` 是播放进度和视频内容缓存的稳定标识；不传时使用 URI。本地文件只保存进度，不复制视频内容。网络 MP4 等支持 HTTP Range 的渐进式文件会自动边播边缓存，拖动到新位置时只下载对应分段，Media3/Ijk 切换时共用同一份状态和缓存。App 数据清除或卸载后这些数据会被系统删除。
+
+HLS/DASH 不缓存媒体内容。标准 `.m3u8`/`.mpd` URL 会自动绕过；无标准扩展名时显式关闭：
+
+```tsx
+<VideoMobilePlayerView
+  ref={player}
+  source={{
+    uri: 'https://example.com/opaque-live-url',
+    mediaId: 'live-channel-1',
+    contentCachePolicy: 'disabled',
+  }}
+/>
+```
+
+目标 SDK 禁止明文流量时，宿主需要在 Android Network Security Config 中仅允许 `127.0.0.1`/`localhost`，供本地 Range 代理使用；不要全局开放 HTTP。完整配置见底层播放器 [README](android/video-mobile-player/README.md)。
 
 ## 命令
 

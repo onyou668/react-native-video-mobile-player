@@ -2,11 +2,14 @@ import type { ViewProps } from 'react-native';
 
 export type VideoPlayerEngine = 'media3' | 'ijk';
 export type VideoPresentationMode = 'inline' | 'fullscreen' | 'floating';
+export type VideoContentCachePolicy = 'auto' | 'disabled';
 export type VideoSource = Readonly<{
   uri: string;
   type?: 'network' | 'local';
   headers?: Readonly<Record<string, string>>;
   title?: string;
+  mediaId?: string;
+  contentCachePolicy?: VideoContentCachePolicy;
 }>;
 
 export type VideoPlayerState = Readonly<{
@@ -36,6 +39,8 @@ export type VideoPresentationState = Readonly<{
 export interface VideoMobilePlayerProps extends ViewProps {
   source: VideoSource;
   autoPlay?: boolean;
+  /** Explicit position override in milliseconds; null/undefined restores cache. */
+  startPositionMs?: number;
   initialEngine?: VideoPlayerEngine;
   startupMode?: VideoPresentationMode;
   showEngineSwitcher?: boolean;

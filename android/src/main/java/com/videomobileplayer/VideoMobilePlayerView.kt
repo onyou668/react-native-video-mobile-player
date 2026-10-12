@@ -34,10 +34,16 @@ class VideoMobilePlayerView(
   private val reactContext: ThemedReactContext,
 ) : FrameLayout(reactContext) {
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-  private val player = createDefaultVideoPlayerController(reactContext, scope)
+  private val player = createDefaultVideoPlayerController(
+    context = reactContext,
+    scope = scope,
+    cache = VideoPlayerCacheProvider.get(reactContext),
+  )
   private val presentation = PlayerPresentationController()
   private val uiConfig = mutableStateOf(VideoPlayerUiConfig())
   private var lastConfigJson: String? = null
+  private var lastStartPositionMs: Long? = null
+  private var hasConfiguredMedia = false
   private var released = false
 
   private val composeView = ComposeView(reactContext).apply {
@@ -71,7 +77,24 @@ class VideoMobilePlayerView(
     )
 
     val source = config.getJSONObject("source").toVideoSource()
-    player.setMediaIfChanged(source, playWhenReady = config.optBoolean("autoPlay", true))
+    val startPositionMs = config.optionalLong("startPositionMs")
+    if (hasConfiguredMedia && lastStartPositionMs != startPositionMs &&
+      player.state.value.source == source
+    ) {
+      player.setMedia(
+        source = source,
+        playWhenReady = config.optBoolean("autoPlay", true),
+        startPositionMs = startPositionMs,
+      )
+    } else {
+      player.setMediaIfChanged(
+        source,
+        playWhenReady = config.optBoolean("autoPlay", true),
+        startPositionMs = startPositionMs,
+      )
+    }
+    lastStartPositionMs = startPositionMs
+    hasConfiguredMedia = true
 
     val startupMode = config.optString("startupMode").toPresentationMode()
     if (presentation.state.value.displayedMode != startupMode) {
@@ -203,13 +226,29 @@ class VideoMobilePlayerView(
 private fun JSONObject.toVideoSource(): VideoSource {
   val uri = getString("uri")
   val title = optString("title").takeIf(String::isNotBlank)
-  if (optString("type") == "local") return VideoSource.local(uri, title)
+  val mediaId = optString("mediaId").takeIf(String::isNotBlank) ?: uri
+  if (optString("type") == "local") {
+    return VideoSource.local(uri = uri, title = title, mediaId = mediaId)
+  }
   val headersObject = optJSONObject("headers")
   val headers = buildMap {
     headersObject?.keys()?.forEach { key -> put(key, headersObject.getString(key)) }
   }
-  return VideoSource.network(uri, headers, title)
+  return VideoSource.network(
+    url = uri,
+    headers = headers,
+    title = title,
+    mediaId = mediaId,
+    contentCachePolicy = if (optString("contentCachePolicy") == "disabled") {
+      VideoSource.ContentCachePolicy.DISABLED
+    } else {
+      VideoSource.ContentCachePolicy.AUTO
+    },
+  )
 }
+
+private fun JSONObject.optionalLong(name: String): Long? =
+  if (has(name) && !isNull(name)) optLong(name) else null
 
 private fun String?.toEngineType(): PlayerEngineType =
   if (this?.lowercase() == "ijk") PlayerEngineType.IJK else PlayerEngineType.MEDIA3

@@ -6,5 +6,6 @@ export type {
   VideoPlayerState,
   VideoPresentationMode,
   VideoPresentationState,
+  VideoContentCachePolicy,
   VideoSource,
 } from './types';

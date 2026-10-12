@@ -14,6 +14,7 @@ export const VideoMobilePlayerView = forwardRef<
 >(function VideoMobilePlayerViewComponent(
   {
     source,
+    startPositionMs,
     autoPlay = true,
     initialEngine = 'media3',
     startupMode = 'inline',
@@ -33,6 +34,7 @@ export const VideoMobilePlayerView = forwardRef<
     () =>
       JSON.stringify({
         source,
+        startPositionMs,
         autoPlay,
         initialEngine,
         startupMode,
@@ -42,6 +44,7 @@ export const VideoMobilePlayerView = forwardRef<
       }),
     [
       source,
+      startPositionMs,
       autoPlay,
       initialEngine,
       startupMode,
