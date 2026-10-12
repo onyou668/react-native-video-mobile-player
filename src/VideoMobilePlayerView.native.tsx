@@ -1,5 +1,5 @@
 import React, { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
-import type { NativeSyntheticEvent } from 'react-native';
+import { StyleSheet, type NativeSyntheticEvent } from 'react-native';
 import NativeView, {
   Commands,
   type NativePlaybackState,
@@ -14,7 +14,6 @@ export const VideoMobilePlayerView = forwardRef<
 >(function VideoMobilePlayerViewComponent(
   {
     source,
-    startPositionMs,
     autoPlay = true,
     initialEngine = 'media3',
     startupMode = 'inline',
@@ -34,7 +33,6 @@ export const VideoMobilePlayerView = forwardRef<
     () =>
       JSON.stringify({
         source,
-        startPositionMs,
         autoPlay,
         initialEngine,
         startupMode,
@@ -44,7 +42,6 @@ export const VideoMobilePlayerView = forwardRef<
       }),
     [
       source,
-      startPositionMs,
       autoPlay,
       initialEngine,
       startupMode,
@@ -84,6 +81,7 @@ export const VideoMobilePlayerView = forwardRef<
     <NativeView
       {...viewProps}
       ref={nativeRef}
+      style={[styles.player, viewProps.style]}
       configJson={configJson}
       onPlaybackStateChange={(
         event: NativeSyntheticEvent<NativePlaybackState>
@@ -94,4 +92,8 @@ export const VideoMobilePlayerView = forwardRef<
       onCloseRequest={() => onCloseRequest?.()}
     />
   );
+});
+
+const styles = StyleSheet.create({
+  player: { width: '100%', aspectRatio: 16 / 9 },
 });

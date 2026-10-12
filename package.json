@@ -1,6 +1,6 @@
 {
   "name": "react-native-video-mobile-player",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "React Native Fabric video player backed by Media3 and IjkPlayer",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",

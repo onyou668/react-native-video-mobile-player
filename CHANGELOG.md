@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- Generate stable media identity and restore playback progress inside the Android player.
+- Remove caller-supplied media IDs and start positions from the TypeScript interface.
+- Give the embedded player a 16:9 adaptive size by default while allowing style overrides.
+
 ## 0.2.0
 
 - Pin the Android player submodule to `v0.2.0`.

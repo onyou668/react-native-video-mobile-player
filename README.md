@@ -4,7 +4,7 @@ React Native Android Fabric 视频播放器，底层复用 `video-mobile-player`
 
 当前只支持 Android，要求 React Native 新架构。播放器源码通过 Git submodule 固定在 `android/video-mobile-player`。
 
-插件 `v0.2.0` 固定使用 Android 播放器主库 `v0.2.0`。调用方只需要依赖本插件 tag，不需要直接管理底层主库版本。
+插件 `v0.3.0` 固定使用 Android 播放器主库 `v0.3.0`。调用方只需要依赖本插件 tag，不需要直接管理底层主库版本。
 
 ## 获取源码
 
@@ -23,7 +23,7 @@ git submodule update --init --recursive
 ## 安装
 
 ```shell
-yarn add https://github.com/onyou668/react-native-video-mobile-player.git#v0.2.0
+yarn add https://github.com/onyou668/react-native-video-mobile-player.git#v0.3.0
 ```
 
 使用 Git dependency 时，包管理器不保证初始化 submodule。正式发布 npm 包前必须确保 `android/video-mobile-player` 已检出，npm 包会包含对应源码快照。
@@ -51,16 +51,12 @@ export function Player() {
       ref={player}
       source={{
         uri: 'https://example.com/video.mp4',
-        mediaId: 'movie-42',
         headers: { Authorization: 'Bearer token' },
         title: 'Video',
       }}
-      // 非空时优先于本地保存进度；传 0 强制从头播放。
-      startPositionMs={10 * 60 * 1000}
       autoPlay
       initialEngine="media3"
       startupMode="inline"
-      style={{ width: '100%', aspectRatio: 16 / 9 }}
       onPlaybackStateChange={(state) => {
         console.log(state.positionMs);
         console.log(state.networkSpeedBytesPerSecond);
@@ -72,17 +68,18 @@ export function Player() {
 
 `VideoMobilePlayerView` 只是可嵌入的播放器 View；详情、剧集、评论和推荐等页面内容始终由 React Native 宿主实现。宿主更新 `source` 就能切换地址，通过同一 ref 切换内核和展示模式，播放进度不依赖业务页面。
 
+View 默认使用 `width: '100%'` 和 `aspectRatio: 16 / 9`，适合详情页顶部区域；宿主传入的 `style` 会覆盖默认尺寸。
+
 本地文件使用 Android `content://` URI：
 
 ```tsx
 <VideoMobilePlayerView
   ref={player}
   source={{ uri: contentUri, type: 'local', title: 'Local video' }}
-  style={{ width: '100%', aspectRatio: 16 / 9 }}
 />
 ```
 
-`mediaId` 是播放进度和视频内容缓存的稳定标识；不传时使用 URI。本地文件只保存进度，不复制视频内容。网络 MP4 等支持 HTTP Range 的渐进式文件会自动边播边缓存，拖动到新位置时只下载对应分段，Media3/Ijk 切换时共用同一份状态和缓存。App 数据清除或卸载后这些数据会被系统删除。
+插件根据来源类型与完整 URI 自动生成稳定、不透明的资源 ID，并自动读取此前进度；没有记录时从 0 开始。调用方不传资源 ID 或起播位置。本地文件只保存进度，不复制视频内容。网络 MP4 等支持 HTTP Range 的渐进式文件会自动边播边缓存，拖动到新位置时只下载对应分段，Media3/Ijk 切换时共用同一份状态和缓存。App 数据清除或卸载后这些数据会被系统删除。
 
 HLS/DASH 不缓存媒体内容。标准 `.m3u8`/`.mpd` URL 会自动绕过；无标准扩展名时显式关闭：
 
@@ -91,7 +88,6 @@ HLS/DASH 不缓存媒体内容。标准 `.m3u8`/`.mpd` URL 会自动绕过；无
   ref={player}
   source={{
     uri: 'https://example.com/opaque-live-url',
-    mediaId: 'live-channel-1',
     contentCachePolicy: 'disabled',
   }}
 />

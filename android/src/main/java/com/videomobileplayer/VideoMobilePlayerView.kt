@@ -42,8 +42,6 @@ class VideoMobilePlayerView(
   private val presentation = PlayerPresentationController()
   private val uiConfig = mutableStateOf(VideoPlayerUiConfig())
   private var lastConfigJson: String? = null
-  private var lastStartPositionMs: Long? = null
-  private var hasConfiguredMedia = false
   private var released = false
 
   private val composeView = ComposeView(reactContext).apply {
@@ -77,24 +75,10 @@ class VideoMobilePlayerView(
     )
 
     val source = config.getJSONObject("source").toVideoSource()
-    val startPositionMs = config.optionalLong("startPositionMs")
-    if (hasConfiguredMedia && lastStartPositionMs != startPositionMs &&
-      player.state.value.source == source
-    ) {
-      player.setMedia(
-        source = source,
-        playWhenReady = config.optBoolean("autoPlay", true),
-        startPositionMs = startPositionMs,
-      )
-    } else {
-      player.setMediaIfChanged(
-        source,
-        playWhenReady = config.optBoolean("autoPlay", true),
-        startPositionMs = startPositionMs,
-      )
-    }
-    lastStartPositionMs = startPositionMs
-    hasConfiguredMedia = true
+    player.setMediaIfChanged(
+      source,
+      playWhenReady = config.optBoolean("autoPlay", true),
+    )
 
     val startupMode = config.optString("startupMode").toPresentationMode()
     if (presentation.state.value.displayedMode != startupMode) {
@@ -226,9 +210,8 @@ class VideoMobilePlayerView(
 private fun JSONObject.toVideoSource(): VideoSource {
   val uri = getString("uri")
   val title = optString("title").takeIf(String::isNotBlank)
-  val mediaId = optString("mediaId").takeIf(String::isNotBlank) ?: uri
   if (optString("type") == "local") {
-    return VideoSource.local(uri = uri, title = title, mediaId = mediaId)
+    return VideoSource.local(uri = uri, title = title)
   }
   val headersObject = optJSONObject("headers")
   val headers = buildMap {
@@ -238,7 +221,6 @@ private fun JSONObject.toVideoSource(): VideoSource {
     url = uri,
     headers = headers,
     title = title,
-    mediaId = mediaId,
     contentCachePolicy = if (optString("contentCachePolicy") == "disabled") {
       VideoSource.ContentCachePolicy.DISABLED
     } else {
@@ -246,9 +228,6 @@ private fun JSONObject.toVideoSource(): VideoSource {
     },
   )
 }
-
-private fun JSONObject.optionalLong(name: String): Long? =
-  if (has(name) && !isNull(name)) optLong(name) else null
 
 private fun String?.toEngineType(): PlayerEngineType =
   if (this?.lowercase() == "ijk") PlayerEngineType.IJK else PlayerEngineType.MEDIA3

@@ -8,7 +8,6 @@ export type VideoSource = Readonly<{
   type?: 'network' | 'local';
   headers?: Readonly<Record<string, string>>;
   title?: string;
-  mediaId?: string;
   contentCachePolicy?: VideoContentCachePolicy;
 }>;
 
@@ -39,8 +38,6 @@ export type VideoPresentationState = Readonly<{
 export interface VideoMobilePlayerProps extends ViewProps {
   source: VideoSource;
   autoPlay?: boolean;
-  /** Explicit position override in milliseconds; null/undefined restores cache. */
-  startPositionMs?: number;
   initialEngine?: VideoPlayerEngine;
   startupMode?: VideoPresentationMode;
   showEngineSwitcher?: boolean;
