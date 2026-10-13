@@ -1,10 +1,10 @@
 # Changelog
 
-## 0.3.0
+## 0.4.0
 
-- Generate stable media identity and restore playback progress inside the Android player.
-- Remove caller-supplied media IDs and start positions from the TypeScript interface.
-- Give the embedded player a 16:9 adaptive size by default while allowing style overrides.
+- Adapt the plugin to the controlled portrait/landscape Android player API.
+- Restore caller-controlled start positions and remove obsolete presentation API usage.
+- Update the Android submodule to the latest main commit.
 
 ## 0.2.0
 

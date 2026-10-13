@@ -14,11 +14,11 @@ export const VideoMobilePlayerView = forwardRef<
 >(function VideoMobilePlayerViewComponent(
   {
     source,
+    startPositionMs,
     autoPlay = true,
     initialEngine = 'media3',
     startupMode = 'inline',
     showEngineSwitcher = true,
-    showPresentationControls = true,
     showNetworkSpeedWhileLoading = true,
     onPlaybackStateChange,
     onPresentationStateChange,
@@ -33,20 +33,20 @@ export const VideoMobilePlayerView = forwardRef<
     () =>
       JSON.stringify({
         source,
+        startPositionMs,
         autoPlay,
         initialEngine,
         startupMode,
         showEngineSwitcher,
-        showPresentationControls,
         showNetworkSpeedWhileLoading,
       }),
     [
       source,
+      startPositionMs,
       autoPlay,
       initialEngine,
       startupMode,
       showEngineSwitcher,
-      showPresentationControls,
       showNetworkSpeedWhileLoading,
     ]
   );

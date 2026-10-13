@@ -38,10 +38,10 @@ export type VideoPresentationState = Readonly<{
 export interface VideoMobilePlayerProps extends ViewProps {
   source: VideoSource;
   autoPlay?: boolean;
+  startPositionMs?: number;
   initialEngine?: VideoPlayerEngine;
   startupMode?: VideoPresentationMode;
   showEngineSwitcher?: boolean;
-  showPresentationControls?: boolean;
   showNetworkSpeedWhileLoading?: boolean;
   onPlaybackStateChange?: (state: VideoPlayerState) => void;
   onPresentationStateChange?: (state: VideoPresentationState) => void;

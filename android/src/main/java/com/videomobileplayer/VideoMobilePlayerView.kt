@@ -12,15 +12,12 @@ import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.UIManagerHelper
-import io.github.mobileplayer.compose.VideoPlayer
+import io.github.mobileplayer.compose.LandscapeVideoPlayer
 import io.github.mobileplayer.compose.VideoPlayerUiConfig
 import io.github.mobileplayer.compose.createDefaultVideoPlayerController
 import io.github.mobileplayer.core.PlaybackState
 import io.github.mobileplayer.core.PlayerEngineType
-import io.github.mobileplayer.core.PlayerPresentationController
-import io.github.mobileplayer.core.PlayerPresentationMode
-import io.github.mobileplayer.core.PlayerPresentationRequest
-import io.github.mobileplayer.core.PlayerPresentationState
+import io.github.mobileplayer.core.VideoPlayerController
 import io.github.mobileplayer.core.VideoSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,22 +31,26 @@ class VideoMobilePlayerView(
   private val reactContext: ThemedReactContext,
 ) : FrameLayout(reactContext) {
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-  private val player = createDefaultVideoPlayerController(
+  private val player: VideoPlayerController = createDefaultVideoPlayerController(
     context = reactContext,
     scope = scope,
     cache = VideoPlayerCacheProvider.get(reactContext),
   )
-  private val presentation = PlayerPresentationController()
-  private val uiConfig = mutableStateOf(VideoPlayerUiConfig())
+  private val fullscreen = mutableStateOf(false)
+  private var currentMode = "inline"
+  private var floatingReturnMode = "inline"
   private var lastConfigJson: String? = null
   private var released = false
+  private var startupApplied = false
+  private val uiConfig = mutableStateOf(VideoPlayerUiConfig())
 
   private val composeView = ComposeView(reactContext).apply {
     setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
     setContent {
-      VideoPlayer(
+      LandscapeVideoPlayer(
         controller = player,
-        presentationController = presentation,
+        isFullscreen = fullscreen.value,
+        onFullscreenChange = { setPresentationMode(if (it) "fullscreen" else "inline") },
         uiConfig = uiConfig.value,
       )
     }
@@ -58,7 +59,6 @@ class VideoMobilePlayerView(
   init {
     addView(composeView, LayoutParams(MATCH_PARENT, MATCH_PARENT))
     observeState()
-    handlePresentationRequests()
   }
 
   fun setConfigJson(value: String?) {
@@ -67,22 +67,16 @@ class VideoMobilePlayerView(
     val config = JSONObject(value)
     val engine = config.optString("initialEngine").toEngineType()
     if (player.state.value.engineType != engine) player.switchEngine(engine)
-
-    uiConfig.value = VideoPlayerUiConfig(
-      showEngineSwitcher = config.optBoolean("showEngineSwitcher", true),
-      showPresentationControls = config.optBoolean("showPresentationControls", true),
-      showNetworkSpeedWhileLoading = config.optBoolean("showNetworkSpeedWhileLoading", true),
-    )
-
+    uiConfig.value = config.uiConfig()
     val source = config.getJSONObject("source").toVideoSource()
     player.setMediaIfChanged(
       source,
       playWhenReady = config.optBoolean("autoPlay", true),
+      startPositionMs = config.optLong("startPositionMs", 0L),
     )
-
-    val startupMode = config.optString("startupMode").toPresentationMode()
-    if (presentation.state.value.displayedMode != startupMode) {
-      presentation.requestMode(startupMode)
+    if (!startupApplied) {
+      startupApplied = true
+      setPresentationMode(config.optString("startupMode").normalizedMode())
     }
   }
 
@@ -95,10 +89,14 @@ class VideoMobilePlayerView(
   fun setPlaybackSpeed(speed: Double) = player.setPlaybackSpeed(speed.toFloat())
   fun switchEngine(engine: String?) = player.switchEngine(engine.toEngineType())
   fun retry() = player.retry()
-  fun requestMode(mode: String?) = presentation.requestMode(mode.toPresentationMode())
-  fun returnFromFloating() = presentation.requestReturnFromFloating()
-  fun syncPresentationMode(mode: String?) = presentation.confirmMode(mode.toPresentationMode())
-  fun closePlayer() = presentation.requestClose()
+  fun requestMode(mode: String?) = setPresentationMode(mode.normalizedMode())
+  fun returnFromFloating() {
+    if (currentMode == "floating") setPresentationMode(floatingReturnMode)
+  }
+  fun syncPresentationMode(mode: String?) = setPresentationMode(mode.normalizedMode())
+  fun closePlayer() {
+    emit("topCloseRequest", Arguments.createMap().apply { putBoolean("isClosed", true) })
+  }
 
   fun release() {
     if (released) return
@@ -111,59 +109,34 @@ class VideoMobilePlayerView(
   override fun onAttachedToWindow() {
     super.onAttachedToWindow()
     emitPlaybackState(player.state.value)
-    emitPresentationState(presentation.state.value)
+    emitPresentationState()
   }
 
   private fun observeState() {
-    scope.launch {
-      player.state.collectLatest(::emitPlaybackState)
-    }
-    scope.launch {
-      presentation.state.collectLatest(::emitPresentationState)
-    }
+    scope.launch { player.state.collectLatest(::emitPlaybackState) }
   }
 
-  private fun handlePresentationRequests() {
-    scope.launch {
-      presentation.requests.collectLatest { request ->
-        when (request) {
-          is PlayerPresentationRequest.ChangeMode -> changeMode(request.to)
-          PlayerPresentationRequest.Close -> {
-            presentation.confirmClosed()
-            emit("topCloseRequest", Arguments.createMap().apply {
-              putBoolean("isClosed", true)
-            })
-          }
-        }
+  private fun setPresentationMode(requested: String): Boolean {
+    val mode = requested.normalizedMode()
+    if (mode == "floating") {
+      val activity = reactContext.currentActivity
+      val entered = activity != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+        activity.enterPictureInPictureMode(PictureInPictureParams.Builder().build())
+      if (!entered) return false
+      floatingReturnMode = if (currentMode == "fullscreen") "fullscreen" else "inline"
+      fullscreen.value = false
+      currentMode = "floating"
+    } else {
+      fullscreen.value = mode == "fullscreen"
+      currentMode = mode
+      reactContext.currentActivity?.requestedOrientation = if (mode == "fullscreen") {
+        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+      } else {
+        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
       }
     }
-  }
-
-  private fun changeMode(mode: PlayerPresentationMode) {
-    val activity = reactContext.currentActivity
-    if (activity == null) {
-      presentation.rejectPendingRequest("No Activity is attached")
-      return
-    }
-    when (mode) {
-      PlayerPresentationMode.INLINE -> {
-        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        presentation.confirmMode(mode)
-      }
-      PlayerPresentationMode.FULLSCREEN -> {
-        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        presentation.confirmMode(mode)
-      }
-      PlayerPresentationMode.FLOATING -> {
-        val entered = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-          activity.enterPictureInPictureMode(PictureInPictureParams.Builder().build())
-        if (entered) {
-          presentation.confirmMode(mode)
-        } else {
-          presentation.rejectPendingRequest("Picture-in-picture is unavailable")
-        }
-      }
-    }
+    emitPresentationState()
+    return true
   }
 
   private fun emitPlaybackState(state: PlaybackState) {
@@ -183,14 +156,13 @@ class VideoMobilePlayerView(
     })
   }
 
-  private fun emitPresentationState(state: PlayerPresentationState) {
+  private fun emitPresentationState() {
     emit("topPresentationStateChange", Arguments.createMap().apply {
-      putString("currentMode", state.currentMode.name.lowercase())
-      putString("displayedMode", state.displayedMode.name.lowercase())
-      putString("floatingReturnMode", state.floatingReturnMode.name.lowercase())
-      putBoolean("hasPendingRequest", state.hasPendingRequest)
-      putBoolean("isClosed", state.isClosed)
-      state.lastFailure?.let { putString("lastFailure", it) }
+      putString("currentMode", currentMode)
+      putString("displayedMode", currentMode)
+      putString("floatingReturnMode", floatingReturnMode)
+      putBoolean("hasPendingRequest", false)
+      putBoolean("isClosed", false)
     })
   }
 
@@ -202,7 +174,7 @@ class VideoMobilePlayerView(
         viewId = id,
         name = eventName,
         payload = payload,
-      )
+      ),
     )
   }
 }
@@ -210,9 +182,7 @@ class VideoMobilePlayerView(
 private fun JSONObject.toVideoSource(): VideoSource {
   val uri = getString("uri")
   val title = optString("title").takeIf(String::isNotBlank)
-  if (optString("type") == "local") {
-    return VideoSource.local(uri = uri, title = title)
-  }
+  if (optString("type") == "local") return VideoSource.local(uri = uri, title = title)
   val headersObject = optJSONObject("headers")
   val headers = buildMap {
     headersObject?.keys()?.forEach { key -> put(key, headersObject.getString(key)) }
@@ -223,17 +193,20 @@ private fun JSONObject.toVideoSource(): VideoSource {
     title = title,
     contentCachePolicy = if (optString("contentCachePolicy") == "disabled") {
       VideoSource.ContentCachePolicy.DISABLED
-    } else {
-      VideoSource.ContentCachePolicy.AUTO
-    },
+    } else VideoSource.ContentCachePolicy.AUTO,
   )
 }
+
+private fun JSONObject.uiConfig(): VideoPlayerUiConfig = VideoPlayerUiConfig(
+  showEngineSwitcher = optBoolean("showEngineSwitcher", true),
+  showNetworkSpeedWhileLoading = optBoolean("showNetworkSpeedWhileLoading", true),
+)
 
 private fun String?.toEngineType(): PlayerEngineType =
   if (this?.lowercase() == "ijk") PlayerEngineType.IJK else PlayerEngineType.MEDIA3
 
-private fun String?.toPresentationMode(): PlayerPresentationMode = when (this?.lowercase()) {
-  "fullscreen" -> PlayerPresentationMode.FULLSCREEN
-  "floating" -> PlayerPresentationMode.FLOATING
-  else -> PlayerPresentationMode.INLINE
+private fun String?.normalizedMode(): String = when (this?.lowercase()) {
+  "fullscreen" -> "fullscreen"
+  "floating" -> "floating"
+  else -> "inline"
 }
