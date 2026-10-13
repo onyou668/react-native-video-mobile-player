@@ -15,8 +15,8 @@ export default function App() {
       <VideoMobilePlayerView
         ref={player}
         source={{
-          uri: 'https://www.w3schools.com/html/mov_bbb.mp4',
-          title: 'Sample video',
+          uri: 'https://media.w3.org/2010/05/sintel/trailer.mp4',
+          title: 'Sintel trailer',
           contentCachePolicy: 'disabled',
         }}
         style={styles.player}
